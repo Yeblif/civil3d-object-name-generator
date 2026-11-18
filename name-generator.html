@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Civil 3D Object Name Generator</title>
+  <style>
+    :root{
+      --bg:#0b1220; --panel:#111827; --panel2:#1f2937; --border:#334155;
+      --text:#e5e7eb; --muted:#94a3b8; --accent:#38bdf8; --accent2:#0ea5e9;
+      --good:#22c55e; --warn:#f59e0b; --bad:#ef4444;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Arial,Helvetica,sans-serif;background:linear-gradient(180deg,#0b1220 0%,#111827 100%);color:var(--text);min-height:100vh}
+    .wrap{max-width:1200px;margin:0 auto;padding:24px}
+    h1{margin:0 0 8px;font-size:2rem}
+    .sub{color:var(--muted);margin-bottom:20px}
+    .grid{display:grid;grid-template-columns:400px 1fr;gap:20px}
+    .card{background:rgba(17,24,39,.96);border:1px solid var(--border);border-radius:16px;padding:18px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+    .card h2{margin:0 0 14px;font-size:1.15rem}
+    .field{margin-bottom:14px}
+    label{display:block;margin-bottom:6px;font-weight:700}
+    select,input,button{width:100%;border-radius:10px;border:1px solid var(--border);background:var(--panel2);color:var(--text);padding:11px 12px;font-size:.95rem}
+    select:focus,input:focus{outline:2px solid rgba(56,189,248,.35);border-color:var(--accent)}
+    button{cursor:pointer;font-weight:700;transition:.18s ease}
+    button:hover{border-color:var(--accent);transform:translateY(-1px)}
+    button.primary{background:linear-gradient(180deg,var(--accent),var(--accent2));color:#00111a;border:none}
+    .output{background:#020617;border:1px solid var(--border);border-radius:12px;padding:16px;font-size:1.05rem;word-break:break-word;min-height:58px}
+    .hint,.status,.small{font-size:.9rem;color:var(--muted)}
+    .status.good{color:var(--good)} .status.warn{color:var(--warn)} .status.bad{color:var(--bad)}
+    .actions{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
+    .toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+    .toolbar button{width:auto}
+    table{width:100%;border-collapse:collapse;margin-top:10px;font-size:.92rem}
+    th,td{border-bottom:1px solid var(--border);padding:10px 8px;text-align:left;vertical-align:top}
+    th{color:var(--muted);font-weight:700;background:rgba(255,255,255,.02)}
+    .history-row{display:flex;gap:8px;align-items:flex-start;justify-content:space-between;border-bottom:1px solid var(--border);padding:10px 0}
+    .history-name{font-family:Consolas,Monaco,monospace;word-break:break-word}
+    .mini-btn{width:auto;padding:7px 10px;font-size:.82rem}
+    button:disabled{opacity:.5;cursor:not-allowed;transform:none;border-color:var(--border)}
+    .pill{display:inline-block;padding:5px 9px;border:1px solid var(--border);border-radius:999px;background:#0f172a;color:var(--muted);font-size:.82rem}
+    ul{margin:8px 0 0 20px;padding:0}
+    code{font-family:Consolas,Monaco,monospace}
+    @media (max-width:950px){.grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1 id="pageTitle">Civil 3D Object Name Generator</h1>
+    <div class="sub">Load a project Excel file, then generate names in the format <strong>State-Function-Type-Location-Name</strong>.</div>
+
+    <div class="grid">
+      <div class="card">
+        <h2>Load Project File</h2>
+        <div class="field">
+          <input id="fileInput" type="file" accept=".xlsx,.xls">
+          <div class="toolbar" style="margin-top:10px;">
+            <button id="changeWorkbookBtn" class="mini-btn" type="button">Change Workbook</button>
+          </div>
+          <div id="workbookInfo" class="hint" style="margin-top:8px;">No workbook cached yet.</div>
+          <div class="hint" style="margin-top:8px;">Use the supplied template. Sheet layout must stay fixed.</div>
+        </div>
+        <div class="field">
+          <label>Project</label>
+          <div id="projectName" class="output">No project file loaded</div>
+        </div>
+        <div class="field">
+          <label for="state">State</label>
+          <select id="state"><option value="">Load project file first</option></select>
+          <div id="stateCode" class="small"></div>
+        </div>
+        <div class="field">
+          <label for="function">Function</label>
+          <select id="function"><option value="">Load project file first</option></select>
+          <div id="functionCode" class="small"></div>
+        </div>
+        <div class="field">
+          <label for="type">Type</label>
+          <select id="type"><option value="">Load project file first</option></select>
+          <div id="typeCode" class="small"></div>
+        </div>
+        <div class="field">
+          <label for="location">Location</label>
+          <select id="location"><option value="">Load project file first</option></select>
+          <div id="locationCode" class="small"></div>
+        </div>
+        <div class="field">
+          <label for="namePart">Name</label>
+          <input id="namePart" type="text" placeholder="e.g. MAINLINE01">
+          <div class="hint">Free text is forced to uppercase. Invalid characters are removed.</div>
+        </div>
+        <div class="field">
+          <label>Generated Name</label>
+          <div id="finalName" class="output"></div>
+          <div id="status" class="status warn">Load a project Excel file first.</div>
+        </div>
+        <div class="actions">
+          <button class="primary" id="copyBtn" disabled="">Copy</button>
+          <button id="addBtn" disabled="">Add to List</button>
+          <button id="clearBtn">Clear</button>
+        </div>
+      </div>
+
+      <div>
+        <div class="card" style="margin-bottom:20px;">
+          <h2>Batch List</h2>
+          <div class="toolbar">
+            <button id="copyAllBtn" class="mini-btn">Copy All</button>
+            <button id="downloadBtn" class="mini-btn">Download TXT</button>
+            <button id="clearListBtn" class="mini-btn">Clear List</button>
+          </div>
+          <table>
+            <thead>
+              <tr><th style="width:55px;">#</th><th>Name</th><th style="width:180px;">Actions</th></tr>
+            </thead>
+            <tbody id="batchTableBody"><tr><td colspan="3" class="small">No names added yet.</td></tr></tbody>
+          </table>
+        </div>
+
+        <div class="card" style="margin-bottom:20px;">
+          <h2>Workbook Layout Required</h2>
+          <div class="pill">Sheet 1 only</div>
+          <ul>
+            <li><code>A1</code> = Project Name</li>
+            <li><code>B1</code> = actual project name</li>
+            <li>Sections stacked vertically: <code>State</code>, <code>Function</code>, <code>Type</code>, <code>Location</code></li>
+            <li>Each section must be exactly 2 columns: <code>Label | Code</code></li>
+            <li>No blank rows inside a section</li>
+            <li>Blank rows between sections are fine</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <h2>Recent Names</h2>
+          <div class="small">Stored in browser local storage only.</div>
+          <div id="historyList" style="margin-top:12px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="vendor/xlsx.full.min.js"></script>
+  <script>
+    const data = { projectName:'', state:[], function:[], type:[], location:[] };
+    const sectionNames = ['State','Function','Type','Location'];
+    let batchList = [];
+    const STORAGE_KEY = 'c3dNameGeneratorCachedWorkbook';
+    const STORAGE_META_KEY = 'c3dNameGeneratorCachedWorkbookMeta';
+
+    const els = {
+      fileInput: document.getElementById('fileInput'),
+      state: document.getElementById('state'),
+      function: document.getElementById('function'),
+      type: document.getElementById('type'),
+      location: document.getElementById('location'),
+      namePart: document.getElementById('namePart'),
+      finalName: document.getElementById('finalName'),
+      status: document.getElementById('status'),
+      stateCode: document.getElementById('stateCode'),
+      functionCode: document.getElementById('functionCode'),
+      typeCode: document.getElementById('typeCode'),
+      locationCode: document.getElementById('locationCode'),
+      batchTableBody: document.getElementById('batchTableBody'),
+      historyList: document.getElementById('historyList'),
+      projectName: document.getElementById('projectName'),
+      pageTitle: document.getElementById('pageTitle'),
+      copyBtn: document.getElementById('copyBtn'),
+      addBtn: document.getElementById('addBtn'),
+      changeWorkbookBtn: document.getElementById('changeWorkbookBtn'),
+      workbookInfo: document.getElementById('workbookInfo')
+    };
+
+    function emptySelect(selectEl, message='Load project file first'){
+      selectEl.innerHTML = '';
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.textContent = message;
+      selectEl.appendChild(opt);
+    }
+
+    function populateSelect(selectEl, items){
+      selectEl.innerHTML = '';
+      if(!items.length){
+        emptySelect(selectEl,'No values loaded');
+        return;
+      }
+      items.forEach(item => {
+        const opt = document.createElement('option');
+        opt.value = item.code;
+        opt.textContent = `${item.label} (${item.code})`;
+        opt.dataset.label = item.label;
+        selectEl.appendChild(opt);
+      });
+    }
+
+    function sanitiseName(value){
+      return value.toUpperCase().trim()
+        .replace(/\s+/g,'_')
+        .replace(/[^A-Z0-9_-]/g,'')
+        .replace(/_+/g,'_')
+        .replace(/-+/g,'-')
+        .replace(/^[_-]+|[_-]+$/g,'');
+    }
+
+    function updateActionButtons(){
+      const hasProject = !!data.projectName;
+      const hasName = !!sanitiseName(els.namePart.value);
+      const canProceed = hasProject && hasName;
+      if (els.copyBtn) els.copyBtn.disabled = !canProceed;
+      if (els.addBtn) els.addBtn.disabled = !canProceed;
+    }
+
+    function setStatus(text, cls='warn'){
+      els.status.textContent = text;
+      els.status.className = `status ${cls}`;
+    }
+
+    function updateProjectDisplay(){
+      els.projectName.textContent = data.projectName || 'No project file loaded';
+      els.pageTitle.textContent = data.projectName
+        ? `Civil 3D Object Name Generator - ${data.projectName}`
+        : 'Civil 3D Object Name Generator';
+      updateActionButtons();
+    }
+
+    function buildName(){
+      if(!data.projectName){
+        els.finalName.textContent = '';
+        setStatus('Load a project Excel file first.','warn');
+        updateActionButtons();
+        return '';
+      }
+
+      const state = els.state.value;
+      const func = els.function.value;
+      const type = els.type.value;
+      const location = els.location.value;
+      const namePart = sanitiseName(els.namePart.value);
+
+      els.stateCode.textContent = state ? `Code: ${state}` : '';
+      els.functionCode.textContent = func ? `Code: ${func}` : '';
+      els.typeCode.textContent = type ? `Code: ${type}` : '';
+      els.locationCode.textContent = location ? `Code: ${location}` : '';
+
+      if(!namePart){
+        els.finalName.textContent = `${state}-${func}-${type}-${location}-`;
+        setStatus('Name is incomplete. The final free-text Name part is blank.','warn');
+        updateActionButtons();
+        return '';
+      }
+
+      const final = `${state}-${func}-${type}-${location}-${namePart}`;
+      els.finalName.textContent = final;
+      setStatus('Ready.','good');
+      updateActionButtons();
+      return final;
+    }
+
+    async function copyText(text){
+      if(!text) return;
+      try{
+        await navigator.clipboard.writeText(text);
+        setStatus('Copied to clipboard.','good');
+      } catch {
+        setStatus('Clipboard copy failed.','bad');
+      }
+    }
+
+    function saveHistory(name){
+      if(!name) return;
+      const key = 'c3dNameGeneratorHistory';
+      let history = JSON.parse(localStorage.getItem(key) || '[]');
+      history = [name, ...history.filter(x => x !== name)].slice(0, 15);
+      localStorage.setItem(key, JSON.stringify(history));
+      renderHistory();
+    }
+
+    function renderHistory(){
+      const key = 'c3dNameGeneratorHistory';
+      const history = JSON.parse(localStorage.getItem(key) || '[]');
+      els.historyList.innerHTML = '';
+      if(!history.length){
+        els.historyList.innerHTML = '<div class="small">No recent names yet.</div>';
+        return;
+      }
+      history.forEach(name => {
+        const row = document.createElement('div');
+        row.className = 'history-row';
+        row.innerHTML = `<div class="history-name">${name}</div><div><button class="mini-btn" data-copy="${name}">Copy</button></div>`;
+        els.historyList.appendChild(row);
+      });
+      els.historyList.querySelectorAll('button[data-copy]').forEach(btn => {
+        btn.addEventListener('click', () => copyText(btn.dataset.copy));
+      });
+    }
+
+    function renderBatch(){
+      els.batchTableBody.innerHTML = '';
+      if(!batchList.length){
+        els.batchTableBody.innerHTML = '<tr><td colspan="3" class="small">No names added yet.</td></tr>';
+        return;
+      }
+      batchList.forEach((name, index) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${index+1}</td><td><code>${name}</code></td><td><button class="mini-btn" data-copy="${index}">Copy</button> <button class="mini-btn" data-delete="${index}">Delete</button></td>`;
+        els.batchTableBody.appendChild(tr);
+      });
+      els.batchTableBody.querySelectorAll('button[data-copy]').forEach(btn => {
+        btn.addEventListener('click', () => copyText(batchList[Number(btn.dataset.copy)]));
+      });
+      els.batchTableBody.querySelectorAll('button[data-delete]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          batchList.splice(Number(btn.dataset.delete),1);
+          renderBatch();
+        });
+      });
+    }
+
+    function downloadTxt(){
+      if(!batchList.length) return;
+      const blob = new Blob([batchList.join('\n')], { type: 'text/plain;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'c3d_object_names.txt';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+
+    function clearInputs(){
+      els.namePart.value = '';
+      if(els.state.options.length) els.state.selectedIndex = 0;
+      if(els.function.options.length) els.function.selectedIndex = 0;
+      if(els.type.options.length) els.type.selectedIndex = 0;
+      if(els.location.options.length) els.location.selectedIndex = 0;
+      buildName();
+      updateActionButtons();
+    }
+
+    function parseSection(rows, headerRowIndex, sectionTitle){
+      const result = [];
+      const labelHeader = rows[headerRowIndex+1]?.[0];
+      const codeHeader = rows[headerRowIndex+1]?.[1];
+      if(String(labelHeader).trim().toLowerCase() !== 'label' || String(codeHeader).trim().toLowerCase() !== 'code'){
+        throw new Error(`Section "${sectionTitle}" must have a "Label | Code" header row immediately below the section title.`);
+      }
+
+      for(let r = headerRowIndex + 2; r < rows.length; r++){
+        const first = rows[r]?.[0];
+        const second = rows[r]?.[1];
+        const firstText = String(first ?? '').trim();
+        const secondText = String(second ?? '').trim();
+
+        if(!firstText && !secondText) break;
+        if(sectionNames.includes(firstText)) break;
+
+        if(!firstText || !secondText){
+          throw new Error(`Section "${sectionTitle}" contains an incomplete row.`);
+        }
+
+        result.push({ label:firstText, code:secondText });
+      }
+
+      if(!result.length){
+        throw new Error(`Section "${sectionTitle}" has no values.`);
+      }
+
+      return result;
+    }
+
+    function updateWorkbookInfo(meta){
+      if(!meta){
+        els.workbookInfo.textContent = 'No workbook cached yet.';
+        return;
+      }
+      const loaded = meta.loadedAt ? new Date(meta.loadedAt).toLocaleString() : 'Unknown time';
+      const source = meta.fileName ? `Cached workbook: ${meta.fileName}` : 'Cached workbook loaded';
+      els.workbookInfo.textContent = `${source} • Last loaded: ${loaded}`;
+    }
+
+    function cacheWorkbookData(meta = {}){
+      const payload = {
+        projectName: data.projectName,
+        state: data.state,
+        function: data.function,
+        type: data.type,
+        location: data.location
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+      const fullMeta = {
+        fileName: meta.fileName || '',
+        loadedAt: meta.loadedAt || new Date().toISOString()
+      };
+      localStorage.setItem(STORAGE_META_KEY, JSON.stringify(fullMeta));
+      updateWorkbookInfo(fullMeta);
+    }
+
+    function restoreCachedWorkbook(){
+      const cached = localStorage.getItem(STORAGE_KEY);
+      if(!cached) return false;
+
+      const parsed = JSON.parse(cached);
+      data.projectName = parsed.projectName || '';
+      data.state = Array.isArray(parsed.state) ? parsed.state : [];
+      data.function = Array.isArray(parsed.function) ? parsed.function : [];
+      data.type = Array.isArray(parsed.type) ? parsed.type : [];
+      data.location = Array.isArray(parsed.location) ? parsed.location : [];
+
+      if(!data.projectName || !data.state.length || !data.function.length || !data.type.length || !data.location.length){
+        return false;
+      }
+
+      populateSelect(els.state, data.state);
+      populateSelect(els.function, data.function);
+      populateSelect(els.type, data.type);
+      populateSelect(els.location, data.location);
+      updateProjectDisplay();
+      clearInputs();
+
+      const meta = JSON.parse(localStorage.getItem(STORAGE_META_KEY) || 'null');
+      updateWorkbookInfo(meta);
+      setStatus('Loaded cached workbook data. Use Change Workbook if the Excel file changed.','good');
+      return true;
+    }
+
+    async function handleWorkbookSelection(file){
+      if(!file) return;
+      try{
+        const buffer = await file.arrayBuffer();
+        loadWorkbook(buffer, { fileName: file.name, loadedAt: new Date().toISOString() });
+      } catch(error){
+        data.projectName = '';
+        data.state = [];
+        data.function = [];
+        data.type = [];
+        data.location = [];
+        updateProjectDisplay();
+        ['state','function','type','location'].forEach(key => emptySelect(els[key]));
+        els.finalName.textContent = '';
+        setStatus(error.message || 'Failed to load workbook.','bad');
+        updateActionButtons();
+      } finally {
+        els.fileInput.value = '';
+      }
+    }
+
+    function loadWorkbook(arrayBuffer, meta = {}){
+      if(typeof XLSX === 'undefined'){
+        throw new Error('Excel library failed to load. Internet access may be blocked.');
+      }
+
+      const wb = XLSX.read(arrayBuffer, { type:'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { header:1, blankrows:true, defval:'' });
+
+      data.projectName = String(rows?.[0]?.[1] ?? '').trim();
+      if(!data.projectName){
+        throw new Error('Cell B1 must contain the project name.');
+      }
+
+      const headers = {};
+      for(let i = 0; i < rows.length; i++){
+        const first = String(rows[i]?.[0] ?? '').trim();
+        if(sectionNames.includes(first)){
+          headers[first] = i;
+        }
+      }
+
+      for(const section of sectionNames){
+        if(headers[section] === undefined){
+          throw new Error(`Section "${section}" was not found in column A.`);
+        }
+      }
+
+      data.state = parseSection(rows, headers.State, 'State');
+      data.function = parseSection(rows, headers.Function, 'Function');
+      data.type = parseSection(rows, headers.Type, 'Type');
+      data.location = parseSection(rows, headers.Location, 'Location');
+
+      populateSelect(els.state, data.state);
+      populateSelect(els.function, data.function);
+      populateSelect(els.type, data.type);
+      populateSelect(els.location, data.location);
+      updateProjectDisplay();
+      clearInputs();
+      cacheWorkbookData(meta);
+      setStatus('Project file loaded.','good');
+    }
+
+    function init(){
+      ['state','function','type','location'].forEach(key => {
+        emptySelect(els[key]);
+        els[key].addEventListener('change', buildName);
+      });
+
+      els.namePart.addEventListener('input', buildName);
+      updateProjectDisplay();
+      renderBatch();
+      renderHistory();
+
+      // restore cached workbook data if present
+      try{
+        restoreCachedWorkbook();
+      } catch {}
+
+      els.fileInput.addEventListener('change', async (event) => {
+        const file = event.target.files?.[0];
+        await handleWorkbookSelection(file);
+      });
+
+      if (els.changeWorkbookBtn) {
+        els.changeWorkbookBtn.addEventListener('click', () => {
+          els.fileInput.value = '';
+          els.fileInput.click();
+        });
+      }
+
+      document.getElementById('copyBtn').addEventListener('click', () => {
+        const final = buildName();
+        if(!final) return;
+        copyText(final);
+        saveHistory(final);
+      });
+
+      document.getElementById('addBtn').addEventListener('click', () => {
+        const final = buildName();
+        if(!final) return;
+        batchList.push(final);
+        renderBatch();
+        saveHistory(final);
+        setStatus('Added to batch list.','good');
+      });
+
+      document.getElementById('clearBtn').addEventListener('click', clearInputs);
+      document.getElementById('copyAllBtn').addEventListener('click', () => batchList.length && copyText(batchList.join('\n')));
+      document.getElementById('downloadBtn').addEventListener('click', downloadTxt);
+      document.getElementById('clearListBtn').addEventListener('click', () => { batchList = []; renderBatch(); });
+
+      updateActionButtons();
+    }
+
+    init();
+  </script>
+
+</body></html>

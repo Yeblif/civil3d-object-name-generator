@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Civil 3D Object Name Generator</title>
+  <style>
+    body{margin:0;font-family:Arial,Helvetica,sans-serif;background:linear-gradient(180deg,#0b1220 0%,#111827 100%);color:#e5e7eb;min-height:100vh}
+    .wrap{max-width:900px;margin:0 auto;padding:32px 24px}
+    h1{margin:0 0 8px;font-size:2rem}
+    .sub{color:#94a3b8;margin-bottom:28px}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px}
+    a.card{display:block;text-decoration:none;color:inherit;background:rgba(17,24,39,.96);border:1px solid #334155;border-radius:16px;padding:20px;transition:.18s ease}
+    a.card:hover{border-color:#38bdf8;transform:translateY(-2px)}
+    h2{margin:0 0 10px;font-size:1.2rem;color:#38bdf8}
+    code{background:#020617;border:1px solid #334155;border-radius:6px;padding:2px 6px;font-size:.85rem}
+    p{color:#94a3b8;line-height:1.5}
+    .foot{margin-top:28px;font-size:.9rem;color:#94a3b8}
+    .foot a{color:#38bdf8}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Civil 3D Object Name Generator</h1>
+    <div class="sub">Pick the naming format for your project.</div>
+    <div class="grid">
+      <a class="card" href="name-generator.html">
+        <h2>Standard</h2>
+        <p><code>State-Function-Type-Location-Name</code></p>
+        <p>Five-part names. Use with the standard workbook layout.</p>
+      </a>
+      <a class="card" href="name-generator-variant.html">
+        <h2>With Variant field</h2>
+        <p><code>State-Function-Type-Location-Variant-Name</code></p>
+        <p>Adds a Variant code (e.g. ALL, SPC, O01–O04) for design options. Needs a workbook with a Variant section.</p>
+      </a>
+    </div>
+    <div class="foot">
+      Sample workbooks: <a href="templates/C3D_Object_Naming_Codes.xlsx">standard</a> ·
+      <a href="templates/C3D_Object_Naming_Codes_variant.xlsx">with Variant</a>
+    </div>
+  </div>
+</body>
+</html>
